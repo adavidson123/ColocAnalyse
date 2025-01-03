@@ -76,7 +76,7 @@ for i, value in enumerate(df_exp_data['tM2']):
     M2_nu = degrees_of_freedom(M2_sim_err, exp_err, M2_sim_std, exp_std)
     M2_nu_val.append(int(M2_nu))
 
-print(f"M1 Welch stats list: {M1_Welch_stat}")
-print(f"M2 Welch stats list: {M2_Welch_stat}")
-print(f"M1 nu values list: {M1_nu_val}")
-print(f"M2 nu values list: {M2_nu_val}")
+#print(f"M1 Welch stats list: {M1_Welch_stat}")
+#print(f"M2 Welch stats list: {M2_Welch_stat}")
+#print(f"M1 nu values list: {M1_nu_val}")
+#print(f"M2 nu values list: {M2_nu_val}")

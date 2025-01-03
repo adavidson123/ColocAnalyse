@@ -9,22 +9,14 @@ import pandas as pd
 import os
 from tqdm import tqdm
 from PIL import Image
+import WelchTest
+from scipy.stats import shapiro
 
 # TODO:
 # Open files
-# for this no. of ND's calculate simulate 100 random more ND's and calc Manders with this and LT channel
-# find distribution of Manders coeff from random ND distribution
 # (include nucleus exclusion and cell bounds for random ND distribution)
 # check random distribution is gaussian to be able to perform the Welch test statistic on 
 
-# choose folder with .lif files in 
-# root = tk.Tk()
-# root.withdraw()
-# #open GUI to ask to open folder path and select folder to analyse
-# folder_path = filedialog.askdirectory()
-# extension = "*.lif" #folder extension of output from ImageJ Log files
-# files = glob.glob(f"{folder_path}/{extension}", recursive=False)
-#print(mM1)
 
 import hydra
 from omegaconf import DictConfig, OmegaConf
@@ -40,18 +32,18 @@ def app(cfg : DictConfig) -> None:
 
     num_simulations = cfg.num_simulations
 
+
     df = pd.DataFrame(columns=['Date','Time','mM1','mM2','sM1','sM2','sM1_std','sM2_std'])
-    mM1 = []
-    mM2 = []
-    sM1_mean = []
-    sM2_mean = []
-    sM1_std = []
-    sM2_std = []
+
     cnt = 0
     for file in tqdm(files, desc="Files", position=0):
+        #################################################################
+        # find date and time after removal from incubation
+        #################################################################
         lif = LifFile(f"{file}")
-        date = file.split('/')[-1].split('.')[0].split('_')[0]
-        time = file.split('/')[-1].split('.')[0].split('_')[-1]
+        head, tail = os.path.split(file)
+        date = tail.split('_')[0]
+        time = tail.split('_')[-1].replace('.lif', '')
         
         for i in tqdm(range(len(lif.image_list)), desc="image list", position=1, leave=False):
             dims = lif.image_list[i]['dims']
@@ -80,10 +72,13 @@ def app(cfg : DictConfig) -> None:
                 ND_no = f_ND.shape[0]
                 sM1 = []
                 sM2 = []
-                n = 0
+
                 for k in tqdm(range(num_simulations), desc="simulations", position=2,leave=False):
                     image_size = (512, 512)  # generate random image of same dimensions
                     image = np.zeros(image_size)
+                    # size of blobs generated here is from previous estimates
+                    # improve this so calculate average size of blobs in each image to be used for 
+                    # random generation comparison???
                     image_ND_blobs = SimulationsFcns.add_blobs_to_image(image, ND_no, 0.0013, 0.00054)
                     sm1, sm2 = SimulationsFcns.calc_manders(np_image_LT, image_ND_blobs)
                     sM1.append(sm1)
@@ -103,10 +98,72 @@ def app(cfg : DictConfig) -> None:
                 df.loc[cnt] = list_for_df_row
                 cnt+=1
 
-            # Baby I don't know how to finish your code, but I don't want to wake you up!
-            # It looks really good. Like way better than anything we do in the lab!
-            # You should be super pround of yourself!!! <3 <3
+    # Save the dataframe to the same folder as cfg.dir_path
+    output_file_path = os.path.join(cfg.dir_path, 'Manders_df.csv')
+    df.to_csv(output_file_path, index=False)
 
+    
+    ########################################################################
+    # Mean, std and sem on rows with the same Time values 
+    # For same Times, check if distribution is Gaussian using Shapiro-Wilks test
+    # Return TRUE or FALSE if normally and distributed or not
+    ########################################################################
+    results_df = pd.DataFrame(columns=['Time', 'mM1_avg', 'mM2_avg', 'sM1_avg', 'sM2_avg', 
+                                       'mM1_std', 'mM2_std', 'sM1_std', 'sM1_std',
+                                       'mM1_sem', 'mM2_sem', 'sM1_sem', 'sM2_sem',
+                                       'mM1_normal', 'mM2_normal', 'sM1_normal', 'sM2_normal'])
+    
+    cnt_2 = 0
+    # Check if M1 and M2 columns are normally distributed for the same Time values
+    unique_times = df['Time'].unique()
+    for time in unique_times:
+        subset = df[df['Time'] == time]
+        mM1_values = subset['mM1']
+        mM2_values = subset['mM2']
+        sM1_values = subset['sM1']
+        sM2_values = subset['sM2']
+        
+        # Shapiro-Wilk test for normality
+        stat_mM1, p_mM1 = shapiro(mM1_values)
+        stat_mM2, p_mM2 = shapiro(mM2_values)
+        stat_sM1, p_sM1 = shapiro(sM1_values)
+        stat_sM2, p_sM2 = shapiro(sM2_values)
+        
+        mM1_normal = p_mM1 > 0.05
+        mM2_normal = p_mM2 > 0.05
+        sM1_normal = p_sM1 > 0.05
+        sM2_normal = p_sM2 > 0.05
+        
+        # Calculate averages
+        mM1_avg = mM1_values.mean()
+        mM2_avg = mM2_values.mean()
+        sM1_avg = sM1_values.mean()
+        sM2_avg = sM2_values.mean()
+
+        # Calculate standard deviations
+        mM1_std = mM1_values.std()
+        mM2_std = mM2_values.std()
+        sM1_std = sM1_values.std()
+        sM2_std = sM2_values.std()
+
+        # Calculate standard errors 
+        mM1_sem = mM1_values.sem()
+        mM2_sem = mM2_values.sem()
+        sM1_sem = sM1_values.sem()
+        sM2_sem = sM2_values.sem()
+        
+        # List with values for a dataframe
+        row_for_results = [time, mM1_avg, mM2_avg, sM1_avg, sM2_avg, mM1_std, mM2_std, sM1_std, sM2_std, 
+                           mM1_sem, mM2_sem, sM1_sem, sM2_sem, mM1_normal, mM2_normal, sM1_normal, sM2_normal]
+        
+        # 
+        results_df.loc[cnt_2] = row_for_results
+        cnt_2+=1
+    
+
+    # Save the results dataframe to the same folder as cfg.dir_path
+    output_results_path = os.path.join(cfg.dir_path, 'Manders_average_df.csv')
+    results_df.to_csv(output_results_path, index=False)
 
 
 if __name__ == "__main__":
