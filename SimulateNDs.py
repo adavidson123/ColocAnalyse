@@ -10,7 +10,7 @@ import os
 from tqdm import tqdm
 from PIL import Image
 import WelchTest
-from scipy.stats import shapiro
+from scipy import stats
 
 # TODO:
 # Open files
@@ -107,11 +107,13 @@ def app(cfg : DictConfig) -> None:
     # Mean, std and sem on rows with the same Time values 
     # For same Times, check if distribution is Gaussian using Shapiro-Wilks test
     # Return TRUE or FALSE if normally and distributed or not
+    # Calculate t-test indep with unequal variance (Welch Test) and add test statistic, p-value and dof to df
     ########################################################################
     results_df = pd.DataFrame(columns=['Time', 'mM1_avg', 'mM2_avg', 'sM1_avg', 'sM2_avg', 
                                        'mM1_std', 'mM2_std', 'sM1_std', 'sM1_std',
                                        'mM1_sem', 'mM2_sem', 'sM1_sem', 'sM2_sem',
-                                       'mM1_normal', 'mM2_normal', 'sM1_normal', 'sM2_normal'])
+                                       'mM1_normal', 'mM2_normal', 'sM1_normal', 'sM2_normal',
+                                       'M1_tstat', 'M1_tp', 'M1_tdof', 'M2_tstat', 'M2_tp', 'M2_tdof'])
     
     cnt_2 = 0
     # Check if M1 and M2 columns are normally distributed for the same Time values
@@ -124,10 +126,10 @@ def app(cfg : DictConfig) -> None:
         sM2_values = subset['sM2']
         
         # Shapiro-Wilk test for normality
-        stat_mM1, p_mM1 = shapiro(mM1_values)
-        stat_mM2, p_mM2 = shapiro(mM2_values)
-        stat_sM1, p_sM1 = shapiro(sM1_values)
-        stat_sM2, p_sM2 = shapiro(sM2_values)
+        stat_mM1, p_mM1 = stats.shapiro(mM1_values)
+        stat_mM2, p_mM2 = stats.shapiro(mM2_values)
+        stat_sM1, p_sM1 = stats.shapiro(sM1_values)
+        stat_sM2, p_sM2 = stats.shapiro(sM2_values)
         
         mM1_normal = p_mM1 > 0.05
         mM2_normal = p_mM2 > 0.05
@@ -151,10 +153,15 @@ def app(cfg : DictConfig) -> None:
         mM2_sem = mM2_values.sem()
         sM1_sem = sM1_values.sem()
         sM2_sem = sM2_values.sem()
+
+        # Calculate ttest statistic
+        M1_tstat, M1_tp, M1_tdof = stats.ttest_indep(mM1_values, sM1_values, equal_var = False)
+        M2_tstat, M2_tp, M2_tdof = stats.ttest_indep(mM2_values, sM2_values, equal_var = False)
         
         # List with values for a dataframe
         row_for_results = [time, mM1_avg, mM2_avg, sM1_avg, sM2_avg, mM1_std, mM2_std, sM1_std, sM2_std, 
-                           mM1_sem, mM2_sem, sM1_sem, sM2_sem, mM1_normal, mM2_normal, sM1_normal, sM2_normal]
+                           mM1_sem, mM2_sem, sM1_sem, sM2_sem, mM1_normal, mM2_normal, sM1_normal, sM2_normal,
+                           M1_tstat, M1_tp, M1_tdof, M2_tstat, M2_tp, M2_tdof]
         
         # 
         results_df.loc[cnt_2] = row_for_results
@@ -164,6 +171,11 @@ def app(cfg : DictConfig) -> None:
     # Save the results dataframe to the same folder as cfg.dir_path
     output_results_path = os.path.join(cfg.dir_path, 'Manders_average_df.csv')
     results_df.to_csv(output_results_path, index=False)
+
+
+    ############################################################################
+    # Else perform Wilcoxon test if one or both of xxx_normal == FALSE ???
+    ############################################################################
 
 
 if __name__ == "__main__":
