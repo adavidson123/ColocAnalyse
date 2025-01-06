@@ -109,7 +109,7 @@ def app(cfg : DictConfig) -> None:
     # Calculate Wilcoxon rank-sum test and add p-value to df
     ########################################################################
     results_df = pd.DataFrame(columns=['Time', 'mM1_avg', 'mM2_avg', 'sM1_avg', 'sM2_avg', 
-                                       'mM1_std', 'mM2_std', 'sM1_std', 'sM1_std',
+                                       'mM1_std', 'mM2_std', 'sM1_std', 'sM2_std',
                                        'mM1_sem', 'mM2_sem', 'sM1_sem', 'sM2_sem',
                                        'mM1_normal', 'mM2_normal', 'sM1_normal', 'sM2_normal',
                                        #'M1_tstat', 
@@ -187,13 +187,12 @@ def app(cfg : DictConfig) -> None:
     results_df.sort_values(by='Time', inplace=True)
 
     # Save the results dataframe to the same folder as cfg.dir_path
-
     output_results_path = os.path.join(cfg.dir_path, 'Manders_average_df.csv')
     results_df.to_csv(output_results_path, index=False)
 
     #####################################################################################
     # What plotting functionality do I want to add from the dataframes...??
-    # 
+    # Plot each point 
     #####################################################################################
 
 
