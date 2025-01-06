@@ -15,7 +15,6 @@ from scipy import stats
 # TODO:
 # Open files
 # (include nucleus exclusion and cell bounds for random ND distribution)
-# check random distribution is gaussian to be able to perform the Welch test statistic on 
 
 
 import hydra
@@ -43,14 +42,14 @@ def app(cfg : DictConfig) -> None:
         lif = LifFile(f"{file}")
         head, tail = os.path.split(file)
         date = tail.split('_')[0]
-        time = tail.split('_')[-1].replace('.lif', '')
+        time = tail.split('_')[-1].replace('h.lif', '')
         
         for i in tqdm(range(len(lif.image_list)), desc="image list", position=1, leave=False):
             dims = lif.image_list[i]['dims']
             if dims[3] == 1 and dims[2] == 1: #check this is a single image not a t or z stack
                 list_for_df_row = []
                 list_for_df_row.append(date)
-                list_for_df_row.append(time)
+                list_for_df_row.append(float(time))
                 ##############################################################
                 # calc manders coeff for LT and ND images
                 #############################################################
@@ -106,15 +105,19 @@ def app(cfg : DictConfig) -> None:
     ########################################################################
     # Mean, std and sem on rows with the same Time values 
     # For same Times, check if distribution is Gaussian using Shapiro-Wilks test
-    # Return TRUE or FALSE if normally and distributed or not
-    # Calculate t-test indep with unequal variance (Welch Test) and add test statistic, p-value and dof to df
+    # Calculate t-test indep with unequal variance (Welch Test) and add p-value to df
+    # Calculate Wilcoxon rank-sum test and add p-value to df
     ########################################################################
     results_df = pd.DataFrame(columns=['Time', 'mM1_avg', 'mM2_avg', 'sM1_avg', 'sM2_avg', 
                                        'mM1_std', 'mM2_std', 'sM1_std', 'sM1_std',
                                        'mM1_sem', 'mM2_sem', 'sM1_sem', 'sM2_sem',
                                        'mM1_normal', 'mM2_normal', 'sM1_normal', 'sM2_normal',
-                                       'M1_tstat', 'M1_tp', 'M1_tdof', 'M2_tstat', 'M2_tp', 'M2_tdof'])
-    
+                                       #'M1_tstat', 
+                                       'M1_tp', 
+                                       #'M2_tstat', 
+                                       'M2_tp', 
+                                       'M1_rankp', 'M2_rankp'])
+
     cnt_2 = 0
     # Check if M1 and M2 columns are normally distributed for the same Time values
     unique_times = df['Time'].unique()
@@ -131,10 +134,11 @@ def app(cfg : DictConfig) -> None:
         stat_sM1, p_sM1 = stats.shapiro(sM1_values)
         stat_sM2, p_sM2 = stats.shapiro(sM2_values)
         
-        mM1_normal = p_mM1 > 0.05
-        mM2_normal = p_mM2 > 0.05
-        sM1_normal = p_sM1 > 0.05
-        sM2_normal = p_sM2 > 0.05
+        # Just return values and later can set significane level and check if gaussian or not
+        #mM1_normal = p_mM1 > 0.05
+        #mM2_normal = p_mM2 > 0.05
+        #sM1_normal = p_sM1 > 0.05
+        #sM2_normal = p_sM2 > 0.05
         
         # Calculate averages
         mM1_avg = mM1_values.mean()
@@ -155,27 +159,43 @@ def app(cfg : DictConfig) -> None:
         sM2_sem = sM2_values.sem()
 
         # Calculate ttest statistic
-        M1_tstat, M1_tp, M1_tdof = stats.ttest_indep(mM1_values, sM1_values, equal_var = False)
-        M2_tstat, M2_tp, M2_tdof = stats.ttest_indep(mM2_values, sM2_values, equal_var = False)
-        
+        #M1_tstat, M1_tp = stats.ttest_ind(mM1_values, sM1_values, equal_var = False)
+        M1_tstat = stats.ttest_ind(mM1_values, sM1_values, equal_var = False)
+        M2_tstat = stats.ttest_ind(mM2_values, sM2_values, equal_var = False)
+
+        # Calculate Wilcoxon rank-sum statistic
+        M1_ranksum = stats.ranksums(mM1_values, sM1_values)
+        M2_ranksum = stats.ranksums(mM2_values, sM2_values)
+
         # List with values for a dataframe
         row_for_results = [time, mM1_avg, mM2_avg, sM1_avg, sM2_avg, mM1_std, mM2_std, sM1_std, sM2_std, 
-                           mM1_sem, mM2_sem, sM1_sem, sM2_sem, mM1_normal, mM2_normal, sM1_normal, sM2_normal,
-                           M1_tstat, M1_tp, M1_tdof, M2_tstat, M2_tp, M2_tdof]
+                           mM1_sem, mM2_sem, sM1_sem, sM2_sem, 
+                           #mM1_normal, mM2_normal, sM1_normal, sM2_normal,
+                           p_mM1, p_mM2, p_sM1, p_sM2,
+                           #M1_tstat.statistic,
+                            M1_tstat.pvalue, 
+                            #M2_tstat.statistic, 
+                            M2_tstat.pvalue,
+                           M1_ranksum.pvalue, M2_ranksum.pvalue]
         
         # 
         results_df.loc[cnt_2] = row_for_results
         cnt_2+=1
     
+    
+    # Order the rows by the Time column...
+    results_df.sort_values(by='Time', inplace=True)
 
     # Save the results dataframe to the same folder as cfg.dir_path
+
     output_results_path = os.path.join(cfg.dir_path, 'Manders_average_df.csv')
     results_df.to_csv(output_results_path, index=False)
 
+    #####################################################################################
+    # What plotting functionality do I want to add from the dataframes...??
+    # 
+    #####################################################################################
 
-    ############################################################################
-    # Else perform Wilcoxon test if one or both of xxx_normal == FALSE ???
-    ############################################################################
 
 
 if __name__ == "__main__":
