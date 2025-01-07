@@ -11,6 +11,8 @@ from tqdm import tqdm
 from PIL import Image
 import WelchTest
 from scipy import stats
+import matplotlib
+from matplotlib import pyplot as plt
 
 # TODO:
 # Open files
@@ -192,8 +194,27 @@ def app(cfg : DictConfig) -> None:
 
     #####################################################################################
     # What plotting functionality do I want to add from the dataframes...??
-    # Plot each point 
+    # Add plotting in from TryPlotting.py
+    # Save this plot as a png file in the same folder as the results
+    # Add plotting for different dates separately...??
     #####################################################################################
+    
+    x_ticks = range(len(results_df['Time']))
+
+    plt.figure(figsize=(7, 5))
+
+    plt.errorbar(x_ticks, results_df['sM2_avg'], yerr=results_df['sM2_std'], linestyle='', marker='_', capsize=5, 
+                color='#66c2a4', label='Simulated')
+    plt.errorbar(x_ticks, results_df['mM2_avg'], yerr=results_df['mM2_std'], linestyle='', marker='_', capsize=5, 
+                color='#006d2c', label='Measured')
+
+    plt.xlabel('Time (hours)')
+    plt.ylabel('Manders Coefficient')
+    plt.title('Overlap of NDs with Lysosomes')
+    plt.xticks(ticks=x_ticks, labels=[str(tick) for tick in results_df['Time']])
+    plt.legend()
+    
+    plt.savefig(os.path.join(cfg.dir_path, 'Manders_plot.png'))
 
 
 
