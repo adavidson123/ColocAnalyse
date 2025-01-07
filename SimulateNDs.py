@@ -115,9 +115,9 @@ def app(cfg : DictConfig) -> None:
                                        'mM1_sem', 'mM2_sem', 'sM1_sem', 'sM2_sem',
                                        'mM1_normal', 'mM2_normal', 'sM1_normal', 'sM2_normal',
                                        #'M1_tstat', 
-                                       'M1_tp', 
+                                       #'M1_tp', 
                                        #'M2_tstat', 
-                                       'M2_tp', 
+                                       #'M2_tp', 
                                        'M1_rankp', 'M2_rankp'])
 
     cnt_2 = 0
@@ -161,13 +161,13 @@ def app(cfg : DictConfig) -> None:
         sM2_sem = sM2_values.sem()
 
         # Calculate ttest statistic
-        #M1_tstat, M1_tp = stats.ttest_ind(mM1_values, sM1_values, equal_var = False)
-        M1_tstat = stats.ttest_ind(mM1_values, sM1_values, equal_var = False)
-        M2_tstat = stats.ttest_ind(mM2_values, sM2_values, equal_var = False)
+        #M1_tstat = stats.ttest_ind(mM1_values, sM1_values, equal_var = False)
+        #M2_tstat = stats.ttest_ind(mM2_values, sM2_values, equal_var = False)
 
         # Calculate Wilcoxon rank-sum statistic
-        M1_ranksum = stats.ranksums(mM1_values, sM1_values)
-        M2_ranksum = stats.ranksums(mM2_values, sM2_values)
+        M1_ranksum = stats.ranksums(mM1_values, sM1_values, alternative='greater') 
+        # use alternative='greater' as want to determine if mM1 the measured values are greater than the sM1 simulated values
+        M2_ranksum = stats.ranksums(mM2_values, sM2_values, alternative='greater')
 
         # List with values for a dataframe
         row_for_results = [time, mM1_avg, mM2_avg, sM1_avg, sM2_avg, mM1_std, mM2_std, sM1_std, sM2_std, 
@@ -175,9 +175,9 @@ def app(cfg : DictConfig) -> None:
                            #mM1_normal, mM2_normal, sM1_normal, sM2_normal,
                            p_mM1, p_mM2, p_sM1, p_sM2,
                            #M1_tstat.statistic,
-                            M1_tstat.pvalue, 
+                            #M1_tstat.pvalue, 
                             #M2_tstat.statistic, 
-                            M2_tstat.pvalue,
+                            #M2_tstat.pvalue,
                            M1_ranksum.pvalue, M2_ranksum.pvalue]
         
         # 

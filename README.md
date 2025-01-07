@@ -71,3 +71,10 @@ SimulateNDs.py
 - load in images from .lif files
 - use the LT image as a base and comapre random distribution of same number of NDs
 - for any .lif file that has channel 1 as lysosome/ mitochondria and channel 2 as the ND channel, will use the base lyso/ mito channel and generate similar numbers of ND at random points on the screen, calculate Manders coeffs for each case 
+
+TryPlotting.py
+- quickly try different plotting styles etc for Manders coeff data
+
+
+TryBounding.py
+- attempt at adding in nucleus and cellular bounding into simulated image using the widefield microscope channel and thresholding
